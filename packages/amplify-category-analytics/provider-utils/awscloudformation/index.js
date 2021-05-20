@@ -1,5 +1,4 @@
-// import { NotImplementedError, exitOnNextTick } from 'amplify-cli-core';
-const core = require('amplify-cli-core');
+const { NotImplementedError, exitOnNextTick } = require('amplify-cli-core');
 const supportedServices = require(`${__dirname}/../supported-services`);
 
 function addResource(context, category, service) {
@@ -21,8 +20,8 @@ function updateResource(context, category, service) {
   if (!updateWalkthrough) {
     const message = 'Update functionality not available for this service';
     context.print.error(message);
-    context.usageData.emitError(new core.NotImplementedError(message));
-    core.exitOnNextTick(0);
+    context.usageData.emitError(new NotImplementedError(message));
+    exitOnNextTick(0);
   }
 
   return updateWalkthrough(context, defaultValuesFilename, serviceMetadata);
