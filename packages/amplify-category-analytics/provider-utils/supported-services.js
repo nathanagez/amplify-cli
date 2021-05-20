@@ -1,3 +1,52 @@
+const analyticsPipelineQuestions = [
+  {
+    key: 'glueDatabaseName',
+    question: 'AWS Glue database name',
+    validation: {
+      operator: 'regex',
+      value: '^[a-zA-Z0-9]+$',
+      onErrorMsg: 'Name is invalid. Has to be non-empty and alphanumeric',
+    },
+    required: true,
+  },
+  {
+    key: 'glueTableName',
+    question: 'AWS Glue table name',
+    validation: {
+      operator: 'regex',
+      value: '^[a-z0-9-]+$',
+      onErrorMsg: 'Table name can only use the following characters: a-z 0-9 -',
+    },
+    required: true,
+  },
+  {
+    key: 's3BucketName',
+    question: 'S3 Bucket name',
+    validation: {
+      operator: 'regex',
+      value: '^[a-z0-9-]{3,47}$',
+      onErrorMsg:
+        'Bucket name can only use the following characters: a-z 0-9 - and should have minimum 3 character and max of 47 character',
+    },
+    required: true,
+  },
+  {
+    key: 's3BufferSize',
+    question: 'S3 Buffer size',
+    type: 'number',
+    required: true,
+  },
+  {
+    key: 's3BufferInterval',
+    question: 'S3 Buffer interval',
+    type: 'number',
+    required: true,
+  },
+].map(question => ({
+  when: ({ analyticsPipeline }) => !!analyticsPipeline,
+  ...question,
+}));
+
 module.exports = {
   Pinpoint: {
     inputs: [
@@ -70,7 +119,7 @@ module.exports = {
         type: 'list',
         options: [
           {
-            name: 'Direct PUT or other sources',
+            name: 'Direct PUT (S3)',
             value: 0,
           },
           {
@@ -88,68 +137,27 @@ module.exports = {
           value: '^[a-zA-Z0-9]+$',
           onErrorMsg: 'Name is invalid. Has to be non-empty and alphanumeric',
         },
-        when: answer => answer.kinesisDeliveryStreamSource === 1,
+        when: ({ kinesisDeliveryStreamSource }) => !!kinesisDeliveryStreamSource,
         required: true,
       },
       {
         key: 'kinesisStreamShardCount',
         question: 'Enter number of shards',
         type: 'number',
-        when: answer => answer.kinesisDeliveryStreamSource === 1,
         required: true,
+        when: ({ kinesisDeliveryStreamSource }) => !!kinesisDeliveryStreamSource,
       },
       {
-        key: 'glueDatabaseName',
-        question: 'AWS Glue database name',
-        validation: {
-          operator: 'regex',
-          value: '^[a-zA-Z0-9]+$',
-          onErrorMsg: 'Name is invalid. Has to be non-empty and alphanumeric',
-        },
-        when: answer => answer.kinesisDeliveryStreamSource === 1,
+        key: 'analyticsPipeline',
+        question: 'Do you want to configure advanced settings?',
+        type: 'confirm',
         required: true,
       },
-      {
-        key: 'glueTableName',
-        question: 'AWS Glue table name',
-        validation: {
-          operator: 'regex',
-          value: '^[a-z0-9-]+$',
-          onErrorMsg: 'Table name can only use the following characters: a-z 0-9 -',
-        },
-        when: answer => answer.kinesisDeliveryStreamSource === 1,
-        required: true,
-      },
-      {
-        key: 's3BucketName',
-        question: 'S3 Bucket name',
-        validation: {
-          operator: 'regex',
-          value: '^[a-z0-9-]{3,47}$',
-          onErrorMsg:
-            'Bucket name can only use the following characters: a-z 0-9 - and should have minimum 3 character and max of 47 character',
-        },
-        when: answer => answer.kinesisDeliveryStreamSource === 1,
-        required: true,
-      },
-      {
-        key: 's3BufferSize',
-        question: 'S3 Buffer size',
-        type: 'number',
-        when: answer => answer.kinesisDeliveryStreamSource === 1,
-        required: true,
-      },
-      {
-        key: 's3BufferInterval',
-        question: 'S3 Buffer interval',
-        type: 'number',
-        when: answer => answer.kinesisDeliveryStreamSource === 1,
-        required: true,
-      },
+      ...analyticsPipelineQuestions,
     ],
     defaultValuesFilename: 'firehose-defaults.js',
     serviceWalkthroughFilename: 'firehose-walkthrough.js',
-    cfnFilename: 'firehose-cloudformation-template.json',
+    cfnFilename: 'firehose-cloudformation-template.json.ejs',
     provider: 'awscloudformation',
     alias: 'Amazon Kinesis Firehose',
   },

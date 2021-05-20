@@ -60,7 +60,7 @@ async function configure(context, defaultValuesFilename, serviceMetadata, resour
       {
         dir: templateDir,
         template: serviceMetadata.cfnFilename,
-        target: path.join(resourceDirPath, serviceMetadata.cfnFilename),
+        target: path.join(resourceDirPath, serviceMetadata.cfnFilename.slice(0, -4)),
         paramsFile: path.join(resourceDirPath, 'parameters.json'),
       },
     ];
