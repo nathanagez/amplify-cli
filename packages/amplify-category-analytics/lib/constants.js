@@ -3,4 +3,5 @@ module.exports = {
   NotificationsCategoryName: 'notifications',
   PinpointName: 'Pinpoint',
   KinesisName: 'Kinesis',
+  KinesisFirehoseName: 'KinesisFirehose',
 };

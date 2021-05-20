@@ -9,7 +9,7 @@ const category = 'analytics';
 const parametersFileName = 'parameters.json';
 const serviceName = 'Pinpoint';
 const templateFileName = 'pinpoint-cloudformation-template.json';
-import { ResourceAlreadyExistsError, exitOnNextTick } from 'amplify-cli-core';
+const { ResourceAlreadyExistsError, exitOnNextTick } = require('amplify-cli-core');
 
 async function addWalkthrough(context, defaultValuesFilename, serviceMetadata) {
   const resourceName = resourceAlreadyExists(context);
@@ -328,7 +328,7 @@ function migrateCFN(cfn) {
 }
 
 function migrateParams(context, params) {
-  const { defaultValuesFilename } = require(`${__dirname}/../../supported-services.json`)[serviceName];
+  const { defaultValuesFilename } = require(`${__dirname}/../../supported-services.js`).default[serviceName];
   const defaultValuesSrc = `${__dirname}/../default-values/${defaultValuesFilename}`;
   const { getAllDefaults } = require(defaultValuesSrc);
 

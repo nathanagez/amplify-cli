@@ -2,12 +2,14 @@ const path = require('path');
 const inquirer = require('inquirer');
 const pinpointHelper = require('./lib/pinpoint-helper');
 const kinesisHelper = require('./lib/kinesis-helper');
+const kinesisFirehoseHelper = require('./lib/kinesis-firehose-helper');
 const { migrate } = require('./provider-utils/awscloudformation/service-walkthroughs/pinpoint-walkthrough');
 
 const category = 'analytics';
 
 async function console(context) {
   const hasKinesisResource = kinesisHelper.hasResource(context);
+  const hasKinesisFirehoseResource = kinesisFirehoseHelper.hasResource(context);
   const hasPinpointResource = pinpointHelper.hasResource(context);
 
   let selectedResource;
@@ -24,6 +26,8 @@ async function console(context) {
     selectedResource = result.resource;
   } else if (hasKinesisResource) {
     selectedResource = 'kinesis';
+  } else if (hasKinesisFirehoseResource) {
+    selectedResource = 'kinesis-firehose';
   } else if (hasPinpointResource) {
     selectedResource = 'pinpoint';
   } else {
@@ -33,6 +37,9 @@ async function console(context) {
   switch (selectedResource) {
     case 'kinesis':
       kinesisHelper.console(context);
+      break;
+    case 'kinesis-firehose':
+      kinesisFirehoseHelper.console(context);
       break;
     case 'pinpoint':
       pinpointHelper.console(context);

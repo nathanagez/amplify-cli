@@ -7,6 +7,9 @@
     "url": "https://github.com/aws-amplify/amplify-cli.git",
     "directory": "packages/amplify-category-analytics"
   },
+  "scripts": {
+    "test": "jest --coverage"
+  },
   "author": "Amazon Web Services",
   "license": "Apache-2.0",
   "main": "index.js",

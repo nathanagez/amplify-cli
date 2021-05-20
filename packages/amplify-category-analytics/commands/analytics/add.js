@@ -1,5 +1,6 @@
 const subcommand = 'add';
 const category = 'analytics';
+const servicesMetadata = require(`${__dirname}/../../provider-utils/supported-services`);
 
 let options;
 
@@ -7,7 +8,6 @@ module.exports = {
   name: subcommand,
   run: async context => {
     const { amplify } = context;
-    const servicesMetadata = amplify.readJsonFile(`${__dirname}/../../provider-utils/supported-services.json`);
     return amplify
       .serviceSelectionPrompt(context, category, servicesMetadata, 'Select an Analytics provider')
       .then(result => {

@@ -1,0 +1,490 @@
+{
+  "AWSTemplateFormatVersion": "2010-09-09",
+  "Parameters": {
+    "env": {
+      "Type": "String"
+    },
+    "kinesisDeliveryStreamName": {
+      "Type": "String"
+    },
+    "kinesisDeliveryPolicy": {
+      "Type": "String",
+      "Default": "kinesisDeliveryPolicy"
+    },
+    "kinesisStreamName": {
+      "Type": "String"
+    },
+    "s3BucketName": {
+      "Type": "String"
+    },
+    "authPolicyName": {
+      "Type": "String"
+    },
+    "unauthPolicyName": {
+      "Type": "String"
+    },
+    "authRoleName": {
+      "Type": "String"
+    },
+    "unauthRoleName": {
+      "Type": "String"
+    },
+    "kinesisStreamShardCount": {
+      "Type": "Number",
+      "Default": 1
+    },
+    "glueTableName": {
+      "Type": "String"
+    },
+    "glueDatabaseName": {
+      "Type": "String"
+    }
+  },
+  "Resources": {
+    "DeliveryRole": {
+      "Type": "AWS::IAM::Role",
+      "Properties": {
+        "AssumeRolePolicyDocument": {
+          "Version": "2012-10-17",
+          "Statement": [
+            {
+              "Sid": "",
+              "Effect": "Allow",
+              "Principal": {
+                "Service": "firehose.amazonaws.com"
+              },
+              "Action": "sts:AssumeRole",
+              "Condition": {
+                "StringEquals": {
+                  "sts:ExternalId": {
+                    "Ref": "AWS::AccountId"
+                  }
+                }
+              }
+            }
+          ]
+        },
+        "Path": "/",
+        "Policies": [
+          {
+            "PolicyName": {
+              "Fn::Join": [
+                "-",
+                [
+                  {
+                    "Ref": "kinesisDeliveryPolicy"
+                  },
+                  {
+                    "Ref": "env"
+                  }
+                ]
+              ]
+            },
+            "PolicyDocument": {
+              "Version": "2012-10-17",
+              "Statement": [
+                {
+                  "Effect": "Allow",
+                  "Action": [
+                    "s3:AbortMultipartUpload",
+                    "s3:GetBucketLocation",
+                    "s3:GetObject",
+                    "s3:ListBucket",
+                    "s3:ListBucketMultipartUploads",
+                    "s3:PutObject"
+                  ],
+                  "Resource": [
+                    {
+                      "Fn::Join": [
+                        "",
+                        [
+                          "arn:aws:s3:::",
+                          {
+                            "Ref": "s3bucket"
+                          }
+                        ]
+                      ]
+                    },
+                    {
+                      "Fn::Join": [
+                        "",
+                        [
+                          "arn:aws:s3:::",
+                          {
+                            "Ref": "s3bucket"
+                          },
+                          "/*"
+                        ]
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "Effect": "Allow",
+                  "Action": ["kinesis:DescribeStream", "kinesis:GetShardIterator", "kinesis:GetRecords", "kinesis:ListShards"],
+                  "Resource": {
+                    "Fn::GetAtt": ["KinesisStream", "Arn"]
+                  }
+                },
+                {
+                  "Effect": "Allow",
+                  "Action": "glue:GetTableVersions",
+                  "Resource": [
+                    {
+                      "Fn::Sub": [
+                        "arn:aws:glue:${Region}:${AccountId}:table/${DBName}/${TableName}",
+                        {
+                          "Region": {
+                            "Ref": "AWS::Region"
+                          },
+                          "AccountId": {
+                            "Ref": "AWS::AccountId"
+                          },
+                          "DBName": {
+                            "Ref": "GlueDatabase"
+                          },
+                          "TableName": {
+                            "Ref": "GlueTable"
+                          }
+                        }
+                      ]
+                    },
+                    {
+                      "Fn::Sub": [
+                        "arn:aws:glue:${Region}:${AccountId}:catalog",
+                        {
+                          "Region": {
+                            "Ref": "AWS::Region"
+                          },
+                          "AccountId": {
+                            "Ref": "AWS::AccountId"
+                          }
+                        }
+                      ]
+                    },
+                    {
+                      "Fn::Sub": [
+                        "arn:aws:glue:${Region}:${AccountId}:database/${DBName}",
+                        {
+                          "Region": {
+                            "Ref": "AWS::Region"
+                          },
+                          "AccountId": {
+                            "Ref": "AWS::AccountId"
+                          },
+                          "DBName": {
+                            "Ref": "GlueDatabase"
+                          }
+                        }
+                      ]
+                    }
+                  ]
+                },
+
+                {
+                  "Effect": "Allow",
+                  "Action": "logs:PutLogEvents",
+                  "Resource": [
+                    {
+                      "Fn::Sub": [
+                        "arn:aws:logs:${Region}:${AccountId}:log-group:/aws/kinesisfirehose/KDF-${TableName}:log-stream:*",
+                        {
+                          "Region": {
+                            "Ref": "AWS::Region"
+                          },
+                          "AccountId": {
+                            "Ref": "AWS::AccountId"
+                          },
+                          "TableName": {
+                            "Ref": "GlueTable"
+                          }
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            }
+          }
+        ]
+      }
+    },
+    "CognitoUnauthPolicy": {
+      "Type": "AWS::IAM::Policy",
+      "Properties": {
+        "PolicyName": {
+          "Ref": "unauthPolicyName"
+        },
+        "Roles": [
+          {
+            "Ref": "unauthRoleName"
+          }
+        ],
+        "PolicyDocument": {
+          "Version": "2012-10-17",
+          "Statement": [
+            {
+              "Effect": "Allow",
+              "Action": ["kinesis:PutRecord", "kinesis:PutRecords"],
+              "Resource": [
+                {
+                  "Fn::GetAtt": ["KinesisStream", "Arn"]
+                },
+                {
+                  "Fn::GetAtt": ["KinesisFirehose", "Arn"]
+                }
+              ]
+            }
+          ]
+        }
+      }
+    },
+    "CognitoAuthPolicy": {
+      "Type": "AWS::IAM::Policy",
+      "Properties": {
+        "PolicyName": {
+          "Ref": "authPolicyName"
+        },
+        "Roles": [
+          {
+            "Ref": "authRoleName"
+          }
+        ],
+        "PolicyDocument": {
+          "Version": "2012-10-17",
+          "Statement": [
+            {
+              "Effect": "Allow",
+              "Action": ["kinesis:PutRecord", "kinesis:PutRecords"],
+              "Resource": [
+                {
+                  "Fn::GetAtt": ["KinesisStream", "Arn"]
+                },
+                {
+                  "Fn::GetAtt": ["KinesisFirehose", "Arn"]
+                }
+              ]
+            }
+          ]
+        }
+      }
+    },
+    "s3bucket": {
+      "Type": "AWS::S3::Bucket",
+      "DeletionPolicy": "Retain",
+      "Properties": {
+        "BucketName": { "Ref": "s3BucketName" }
+      }
+    },
+    "GlueDatabase": {
+      "Type": "AWS::Glue::Database",
+      "Properties": {
+        "CatalogId": {
+          "Ref": "AWS::AccountId"
+        },
+        "DatabaseInput": {}
+      }
+    },
+    "GlueTable": {
+      "Type": "AWS::Glue::Table",
+      "Properties": {
+        "CatalogId": {
+          "Ref": "AWS::AccountId"
+        },
+        "DatabaseName": {
+          "Ref": "GlueDatabase"
+        },
+        "TableInput": {
+          "Name": {
+            "Fn::Join": [
+              "-",
+              [
+                {
+                  "Ref": "glueTableName"
+                },
+                {
+                  "Ref": "env"
+                }
+              ]
+            ]
+          },
+          "Owner": "owner",
+          "Retention": 0,
+          "StorageDescriptor": {
+            "Columns": [
+              {
+                "Name": "pickup_latitude",
+                "Type": "double"
+              },
+              {
+                "Name": "pickup_longitude",
+                "Type": "double"
+              }
+            ],
+            "InputFormat": "org.apache.hadoop.hive.ql.io.parquet.MapredParquetInputFormat",
+            "OutputFormat": "org.apache.hadoop.hive.ql.io.parquet.MapredParquetOutputFormat",
+            "Parameters": {
+              "classification": "parquet",
+              "deprecated": "no"
+            },
+            "SerdeInfo": {
+              "SerializationLibrary": "org.apache.hadoop.hive.ql.io.parquet.serde.ParquetHiveSerDe",
+              "Parameters": {
+                "serialization.format": "1"
+              }
+            },
+            "Location": {
+              "Fn::Sub": [
+                "s3://${BucketName}/",
+                {
+                  "BucketName": {
+                    "Ref": "s3bucket"
+                  }
+                }
+              ]
+            }
+          }
+        }
+      }
+    },
+    "KinesisStream": {
+      "Type": "AWS::Kinesis::Stream",
+      "Properties": {
+        "Name": {
+          "Fn::Join": [
+            "-",
+            [
+              {
+                "Ref": "kinesisStreamName"
+              },
+              {
+                "Ref": "env"
+              }
+            ]
+          ]
+        },
+        "ShardCount": {
+          "Ref": "kinesisStreamShardCount"
+        }
+      }
+    },
+    "KinesisFirehose": {
+      "Type": "AWS::KinesisFirehose::DeliveryStream",
+      "Properties": {
+        "DeliveryStreamName": {
+          "Fn::Join": [
+            "-",
+            [
+              {
+                "Ref": "kinesisDeliveryStreamName"
+              },
+              {
+                "Ref": "env"
+              }
+            ]
+          ]
+        },
+        "DeliveryStreamType": "KinesisStreamAsSource",
+        "KinesisStreamSourceConfiguration": {
+          "KinesisStreamARN": {
+            "Fn::GetAtt": ["KinesisStream", "Arn"]
+          },
+          "RoleARN": {
+            "Fn::GetAtt": ["DeliveryRole", "Arn"]
+          }
+        },
+        "ExtendedS3DestinationConfiguration": {
+          "RoleARN": {
+            "Fn::GetAtt": ["DeliveryRole", "Arn"]
+          },
+          "BucketARN": {
+            "Fn::Join": [
+              "",
+              [
+                "arn:aws:s3:::",
+                {
+                  "Ref": "s3bucket"
+                }
+              ]
+            ]
+          },
+          "BufferingHints": {
+            "SizeInMBs": 128,
+            "IntervalInSeconds": 300
+          },
+          "CompressionFormat": "UNCOMPRESSED",
+          "EncryptionConfiguration": {
+            "NoEncryptionConfig": "NoEncryption"
+          },
+          "CloudWatchLoggingOptions": {
+            "Enabled": true,
+            "LogGroupName": {
+              "Fn::Join": [
+                "",
+                [
+                  "/aws/kinesisfirehose/KDF-",
+                  {
+                    "Ref": "GlueTable"
+                  }
+                ]
+              ]
+            },
+            "LogStreamName": "S3Delivery"
+          },
+          "S3BackupMode": "Disabled",
+          "DataFormatConversionConfiguration": {
+            "Enabled": true,
+            "InputFormatConfiguration": {
+              "Deserializer": {
+                "OpenXJsonSerDe": {}
+              }
+            },
+            "OutputFormatConfiguration": {
+              "Serializer": {
+                "ParquetSerDe": {}
+              }
+            },
+            "SchemaConfiguration": {
+              "CatalogId": {
+                "Ref": "AWS::AccountId"
+              },
+              "RoleARN": {
+                "Fn::GetAtt": ["DeliveryRole", "Arn"]
+              },
+              "DatabaseName": {
+                "Ref": "GlueDatabase"
+              },
+              "TableName": {
+                "Ref": "GlueTable"
+              },
+              "Region": {
+                "Ref": "AWS::Region"
+              },
+              "VersionId": "LATEST"
+            }
+          }
+        }
+      }
+    }
+  },
+  "Outputs": {
+    "kinesisStreamArn": {
+      "Value": { "Fn::GetAtt": ["KinesisStream", "Arn"] }
+    },
+    "kinesisFirehoseArn": {
+      "Value": { "Fn::GetAtt": ["KinesisFirehose", "Arn"] }
+    },
+    "kinesisStreamId": {
+      "Value": { "Ref": "KinesisStream" }
+    },
+    "kinesisFirehoseStreamId": {
+      "Value": { "Ref": "KinesisFirehose" }
+    },
+    "glueDatabase": {
+      "Value": { "Ref": "GlueDatabase" }
+    },
+    "glueTable": {
+      "Value": { "Ref": "GlueTable" }
+    }
+  }
+}

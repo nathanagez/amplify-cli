@@ -1,6 +1,9 @@
-import { NotImplementedError, exitOnNextTick } from 'amplify-cli-core';
+// import { NotImplementedError, exitOnNextTick } from 'amplify-cli-core';
+const core = require('amplify-cli-core');
+const supportedServices = require(`${__dirname}/../supported-services`);
+
 function addResource(context, category, service) {
-  const serviceMetadata = context.amplify.readJsonFile(`${__dirname}/../supported-services.json`)[service];
+  const serviceMetadata = supportedServices[service];
   const { defaultValuesFilename, serviceWalkthroughFilename } = serviceMetadata;
 
   const serviceWalkthroughSrc = `${__dirname}/service-walkthroughs/${serviceWalkthroughFilename}`;
@@ -10,7 +13,7 @@ function addResource(context, category, service) {
 }
 
 function updateResource(context, category, service) {
-  const serviceMetadata = context.amplify.readJsonFile(`${__dirname}/../supported-services.json`)[service];
+  const serviceMetadata = supportedServices[service];
   const { defaultValuesFilename, serviceWalkthroughFilename } = serviceMetadata;
   const serviceWalkthroughSrc = `${__dirname}/service-walkthroughs/${serviceWalkthroughFilename}`;
   const { updateWalkthrough } = require(serviceWalkthroughSrc);
@@ -18,15 +21,15 @@ function updateResource(context, category, service) {
   if (!updateWalkthrough) {
     const message = 'Update functionality not available for this service';
     context.print.error(message);
-    context.usageData.emitError(new NotImplementedError(message));
-    exitOnNextTick(0);
+    context.usageData.emitError(new core.NotImplementedError(message));
+    core.exitOnNextTick(0);
   }
 
   return updateWalkthrough(context, defaultValuesFilename, serviceMetadata);
 }
 
 function getPermissionPolicies(context, service, resourceName, crudOptions) {
-  const serviceMetadata = context.amplify.readJsonFile(`${__dirname}/../supported-services.json`)[service];
+  const serviceMetadata = supportedServices[service];
   const { serviceWalkthroughFilename } = serviceMetadata;
   const serviceWalkthroughSrc = `${__dirname}/service-walkthroughs/${serviceWalkthroughFilename}`;
   const { getIAMPolicies } = require(serviceWalkthroughSrc);
