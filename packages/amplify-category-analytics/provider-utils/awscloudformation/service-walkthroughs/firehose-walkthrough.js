@@ -63,6 +63,11 @@ async function configure(context, defaultValuesFilename, serviceMetadata, resour
         target: path.join(resourceDirPath, serviceMetadata.cfnFilename.slice(0, -4)),
         paramsFile: path.join(resourceDirPath, 'parameters.json'),
       },
+      {
+        dir: `${__dirname}/../../../resources/`,
+        template: serviceMetadata.glueTableColumnsFilename,
+        target: path.join(resourceDirPath, serviceMetadata.glueTableColumnsFilename),
+      },
     ];
 
     const params = {
@@ -70,8 +75,11 @@ async function configure(context, defaultValuesFilename, serviceMetadata, resour
       kinesisStreamName: answers.kinesisStreamName,
       kinesisStreamShardCount: answers.kinesisStreamShardCount,
       glueTableName: answers.glueTableName,
-      s3BucketName: answers.s3BucketName,
       glueDatabaseName: answers.glueDatabaseName,
+      s3BufferSize: answers.s3BufferSize,
+      s3BufferInterval: answers.s3BufferInterval,
+      uuid: defaultValues.uuid,
+      appName: defaultValues.appName,
       authRoleName: defaultValues.authRoleName,
       unauthRoleName: defaultValues.unauthRoleName,
       authPolicyName: defaultValues.authPolicyName,
@@ -138,9 +146,20 @@ async function configure(context, defaultValuesFilename, serviceMetadata, resour
       }
     }
 
+    // Edit Glue table columns
+    await amplify.copyBatch(context, [copyJobs[1]], {}, false, false);
+    const schemaPath = path.join(
+      context.amplify.pathManager.getBackendDirPath(),
+      category,
+      targetResourceName,
+      serviceMetadata.glueTableColumnsFilename,
+    );
+    await context.amplify.openEditor(context, schemaPath, true);
+    const glueTableColumns = context.amplify.readJsonFile(schemaPath);
+
     // At this point we have a valid auth configuration either imported or added/updated.
     // allow overwrite in update case: resourceName specified
-    await amplify.copyBatch(context, copyJobs, {}, !!resourceName, params);
+    await amplify.copyBatch(context, [copyJobs[0]], { columns: glueTableColumns }, !!resourceName, params);
     return targetResourceName;
   });
 }

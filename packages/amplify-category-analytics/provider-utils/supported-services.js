@@ -20,17 +20,6 @@ const analyticsPipelineQuestions = [
     required: true,
   },
   {
-    key: 's3BucketName',
-    question: 'S3 Bucket name',
-    validation: {
-      operator: 'regex',
-      value: '^[a-z0-9-]{3,47}$',
-      onErrorMsg:
-        'Bucket name can only use the following characters: a-z 0-9 - and should have minimum 3 character and max of 47 character',
-    },
-    required: true,
-  },
-  {
     key: 's3BufferSize',
     question: 'S3 Buffer size',
     type: 'number',
@@ -154,10 +143,17 @@ module.exports = {
         required: true,
       },
       ...analyticsPipelineQuestions,
+      {
+        key: 'editSchemaChoice',
+        type: 'confirm',
+        question: 'Do you want to edit the schema now?',
+        required: true,
+      },
     ],
     defaultValuesFilename: 'firehose-defaults.js',
     serviceWalkthroughFilename: 'firehose-walkthrough.js',
     cfnFilename: 'firehose-cloudformation-template.json.ejs',
+    glueTableColumnsFilename: 'glue-table-columns.json',
     provider: 'awscloudformation',
     alias: 'Amazon Kinesis Firehose',
   },

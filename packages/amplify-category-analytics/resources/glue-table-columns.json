@@ -1,0 +1,10 @@
+[
+  {
+    "Name": "eventName",
+    "Type": "string"
+  },
+  {
+    "Name": "value",
+    "Type": "string"
+  }
+]

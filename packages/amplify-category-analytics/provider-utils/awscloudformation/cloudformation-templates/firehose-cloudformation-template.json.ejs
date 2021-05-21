@@ -7,14 +7,7 @@
     "kinesisDeliveryStreamName": {
       "Type": "String"
     },
-    "kinesisDeliveryPolicy": {
-      "Type": "String",
-      "Default": "kinesisDeliveryPolicy"
-    },
     "kinesisStreamName": {
-      "Type": "String"
-    },
-    "s3BucketName": {
       "Type": "String"
     },
     "authPolicyName": {
@@ -38,12 +31,116 @@
     },
     "glueDatabaseName": {
       "Type": "String"
+    },
+    "uuid": {
+      "Type": "String"
+    },
+    "appName": {
+      "Type": "String"
+    },
+    "s3BufferSize": {
+      "Type": "Number"
+    },
+    "s3BufferInterval": {
+      "Type": "Number"
     }
   },
   "Resources": {
+    "GlueCrawlerRole": {
+      "Type": "AWS::IAM::Role",
+      "Properties": {
+        "RoleName": {
+          "Fn::Sub": [
+            "${AppName}-AWSGlueServiceRole-${Env}",
+            {
+              "Env": {
+                "Ref": "env"
+              },
+              "AppName": {
+                "Ref": "appName"
+              }
+            }
+          ]
+        },
+        "ManagedPolicyArns": [
+          "arn:aws:iam::aws:policy/service-role/AWSGlueServiceRole"
+        ],
+        "AssumeRolePolicyDocument": {
+          "Version": "2012-10-17",
+          "Statement": [
+            {
+              "Effect": "Allow",
+              "Principal": {
+                "Service": [
+                  "glue.amazonaws.com"
+                ]
+              },
+              "Action": [
+                "sts:AssumeRole"
+              ]
+            }
+          ]
+        },
+        "Path": "/",
+        "Policies": [
+          {
+            "PolicyName": {
+              "Fn::Sub": [
+                "${AppName}-AWSGlueS3Access-${Env}",
+                {
+                  "Env": {
+                    "Ref": "env"
+                  },
+                  "AppName": {
+                    "Ref": "appName"
+                  }
+                }
+              ]
+            },
+            "PolicyDocument": {
+              "Version": "2012-10-17",
+              "Statement": [
+                {
+                  "Effect": "Allow",
+                  "Action": [
+                    "s3:GetObject",
+                    "s3:PutObject"
+                  ],
+                  "Resource": [
+                    {
+                      "Fn::Sub": [
+                        "arn:aws:s3:::${BucketName}-kdf*",
+                        {
+                          "BucketName": {
+                            "Ref": "S3Bucket"
+                          }
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            }
+          }
+        ]
+      }
+    },
     "DeliveryRole": {
       "Type": "AWS::IAM::Role",
       "Properties": {
+        "RoleName": {
+          "Fn::Sub": [
+            "${AppName}-DeliveryServiceRole-${Env}",
+            {
+              "Env": {
+                "Ref": "env"
+              },
+              "AppName": {
+                "Ref": "appName"
+              }
+            }
+          ]
+        },
         "AssumeRolePolicyDocument": {
           "Version": "2012-10-17",
           "Statement": [
@@ -68,16 +165,16 @@
         "Policies": [
           {
             "PolicyName": {
-              "Fn::Join": [
-                "-",
-                [
-                  {
-                    "Ref": "kinesisDeliveryPolicy"
-                  },
-                  {
+              "Fn::Sub": [
+                "${AppName}-DeliveryServicePolicy-${Env}",
+                {
+                  "Env": {
                     "Ref": "env"
+                  },
+                  "AppName": {
+                    "Ref": "appName"
                   }
-                ]
+                }
               ]
             },
             "PolicyDocument": {
@@ -100,7 +197,7 @@
                         [
                           "arn:aws:s3:::",
                           {
-                            "Ref": "s3bucket"
+                            "Ref": "S3Bucket"
                           }
                         ]
                       ]
@@ -111,7 +208,7 @@
                         [
                           "arn:aws:s3:::",
                           {
-                            "Ref": "s3bucket"
+                            "Ref": "S3Bucket"
                           },
                           "/*"
                         ]
@@ -121,9 +218,17 @@
                 },
                 {
                   "Effect": "Allow",
-                  "Action": ["kinesis:DescribeStream", "kinesis:GetShardIterator", "kinesis:GetRecords", "kinesis:ListShards"],
+                  "Action": [
+                    "kinesis:DescribeStream",
+                    "kinesis:GetShardIterator",
+                    "kinesis:GetRecords",
+                    "kinesis:ListShards"
+                  ],
                   "Resource": {
-                    "Fn::GetAtt": ["KinesisStream", "Arn"]
+                    "Fn::GetAtt": [
+                      "KinesisStream",
+                      "Arn"
+                    ]
                   }
                 },
                 {
@@ -180,7 +285,6 @@
                     }
                   ]
                 },
-
                 {
                   "Effect": "Allow",
                   "Action": "logs:PutLogEvents",
@@ -225,13 +329,22 @@
           "Statement": [
             {
               "Effect": "Allow",
-              "Action": ["kinesis:PutRecord", "kinesis:PutRecords"],
+              "Action": [
+                "kinesis:PutRecord",
+                "kinesis:PutRecords"
+              ],
               "Resource": [
                 {
-                  "Fn::GetAtt": ["KinesisStream", "Arn"]
+                  "Fn::GetAtt": [
+                    "KinesisStream",
+                    "Arn"
+                  ]
                 },
                 {
-                  "Fn::GetAtt": ["KinesisFirehose", "Arn"]
+                  "Fn::GetAtt": [
+                    "KinesisFirehose",
+                    "Arn"
+                  ]
                 }
               ]
             }
@@ -255,13 +368,22 @@
           "Statement": [
             {
               "Effect": "Allow",
-              "Action": ["kinesis:PutRecord", "kinesis:PutRecords"],
+              "Action": [
+                "kinesis:PutRecord",
+                "kinesis:PutRecords"
+              ],
               "Resource": [
                 {
-                  "Fn::GetAtt": ["KinesisStream", "Arn"]
+                  "Fn::GetAtt": [
+                    "KinesisStream",
+                    "Arn"
+                  ]
                 },
                 {
-                  "Fn::GetAtt": ["KinesisFirehose", "Arn"]
+                  "Fn::GetAtt": [
+                    "KinesisFirehose",
+                    "Arn"
+                  ]
                 }
               ]
             }
@@ -269,11 +391,26 @@
         }
       }
     },
-    "s3bucket": {
+    "S3Bucket": {
       "Type": "AWS::S3::Bucket",
       "DeletionPolicy": "Retain",
       "Properties": {
-        "BucketName": { "Ref": "s3BucketName" }
+        "BucketName": {
+          "Fn::Sub": [
+            "${AppName}-${Env}-kinesis-${uuid}",
+            {
+              "Env": {
+                "Ref": "env"
+              },
+              "Uuid": {
+                "Ref": "uuid"
+              },
+              "AppName": {
+                "Ref": "appName"
+              }
+            }
+          ]
+        }
       }
     },
     "GlueDatabase": {
@@ -311,16 +448,7 @@
           "Owner": "owner",
           "Retention": 0,
           "StorageDescriptor": {
-            "Columns": [
-              {
-                "Name": "pickup_latitude",
-                "Type": "double"
-              },
-              {
-                "Name": "pickup_longitude",
-                "Type": "double"
-              }
-            ],
+            "Columns": <%- JSON.stringify(props.columns) %>,
             "InputFormat": "org.apache.hadoop.hive.ql.io.parquet.MapredParquetInputFormat",
             "OutputFormat": "org.apache.hadoop.hive.ql.io.parquet.MapredParquetOutputFormat",
             "Parameters": {
@@ -338,12 +466,52 @@
                 "s3://${BucketName}/",
                 {
                   "BucketName": {
-                    "Ref": "s3bucket"
+                    "Ref": "S3Bucket"
                   }
                 }
               ]
             }
           }
+        }
+      }
+    },
+    "GlueCrawler": {
+      "Type": "AWS::Glue::Crawler",
+      "Properties": {
+        "Name": {
+          "Fn::Sub": [
+            "${DBName}-crawler-${Env}",
+            {
+              "Env": {
+                "Ref": "env"
+              },
+              "DBName": {
+                "Ref": "GlueDatabase"
+              }
+            }
+          ]
+        },
+        "Role": {
+          "Fn::GetAtt": [
+            "GlueCrawlerRole",
+            "Arn"
+          ]
+        },
+        "DatabaseName": {
+          "Ref": "GlueDatabase"
+        },
+        "Targets": {
+          "S3Targets": [
+            {
+              "Path": {
+                "Ref": "S3Bucket"
+              }
+            }
+          ]
+        },
+        "SchemaChangePolicy": {
+          "UpdateBehavior": "UPDATE_IN_DATABASE",
+          "DeleteBehavior": "LOG"
         }
       }
     },
@@ -387,15 +555,24 @@
         "DeliveryStreamType": "KinesisStreamAsSource",
         "KinesisStreamSourceConfiguration": {
           "KinesisStreamARN": {
-            "Fn::GetAtt": ["KinesisStream", "Arn"]
+            "Fn::GetAtt": [
+              "KinesisStream",
+              "Arn"
+            ]
           },
           "RoleARN": {
-            "Fn::GetAtt": ["DeliveryRole", "Arn"]
+            "Fn::GetAtt": [
+              "DeliveryRole",
+              "Arn"
+            ]
           }
         },
         "ExtendedS3DestinationConfiguration": {
           "RoleARN": {
-            "Fn::GetAtt": ["DeliveryRole", "Arn"]
+            "Fn::GetAtt": [
+              "DeliveryRole",
+              "Arn"
+            ]
           },
           "BucketARN": {
             "Fn::Join": [
@@ -403,14 +580,18 @@
               [
                 "arn:aws:s3:::",
                 {
-                  "Ref": "s3bucket"
+                  "Ref": "S3Bucket"
                 }
               ]
             ]
           },
           "BufferingHints": {
-            "SizeInMBs": 128,
-            "IntervalInSeconds": 300
+            "SizeInMBs": {
+              "Ref": "s3BufferSize"
+            },
+            "IntervalInSeconds": {
+              "Ref": "s3BufferInterval"
+            }
           },
           "CompressionFormat": "UNCOMPRESSED",
           "EncryptionConfiguration": {
@@ -449,7 +630,10 @@
                 "Ref": "AWS::AccountId"
               },
               "RoleARN": {
-                "Fn::GetAtt": ["DeliveryRole", "Arn"]
+                "Fn::GetAtt": [
+                  "DeliveryRole",
+                  "Arn"
+                ]
               },
               "DatabaseName": {
                 "Ref": "GlueDatabase"
@@ -469,22 +653,40 @@
   },
   "Outputs": {
     "kinesisStreamArn": {
-      "Value": { "Fn::GetAtt": ["KinesisStream", "Arn"] }
+      "Value": {
+        "Fn::GetAtt": [
+          "KinesisStream",
+          "Arn"
+        ]
+      }
     },
     "kinesisFirehoseArn": {
-      "Value": { "Fn::GetAtt": ["KinesisFirehose", "Arn"] }
+      "Value": {
+        "Fn::GetAtt": [
+          "KinesisFirehose",
+          "Arn"
+        ]
+      }
     },
     "kinesisStreamId": {
-      "Value": { "Ref": "KinesisStream" }
+      "Value": {
+        "Ref": "KinesisStream"
+      }
     },
     "kinesisFirehoseStreamId": {
-      "Value": { "Ref": "KinesisFirehose" }
+      "Value": {
+        "Ref": "KinesisFirehose"
+      }
     },
     "glueDatabase": {
-      "Value": { "Ref": "GlueDatabase" }
+      "Value": {
+        "Ref": "GlueDatabase"
+      }
     },
     "glueTable": {
-      "Value": { "Ref": "GlueTable" }
+      "Value": {
+        "Ref": "GlueTable"
+      }
     }
   }
 }
