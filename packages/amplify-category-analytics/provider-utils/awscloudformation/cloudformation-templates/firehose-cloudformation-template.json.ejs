@@ -112,7 +112,7 @@
                         "arn:aws:s3:::${BucketName}-kdf*",
                         {
                           "BucketName": {
-                            "Ref": "S3Bucket"
+                            "Ref": "KinesisS3Bucket"
                           }
                         }
                       ]
@@ -197,7 +197,7 @@
                         [
                           "arn:aws:s3:::",
                           {
-                            "Ref": "S3Bucket"
+                            "Ref": "KinesisS3Bucket"
                           }
                         ]
                       ]
@@ -208,7 +208,7 @@
                         [
                           "arn:aws:s3:::",
                           {
-                            "Ref": "S3Bucket"
+                            "Ref": "KinesisS3Bucket"
                           },
                           "/*"
                         ]
@@ -391,7 +391,7 @@
         }
       }
     },
-    "S3Bucket": {
+    "KinesisS3Bucket": {
       "Type": "AWS::S3::Bucket",
       "DeletionPolicy": "Retain",
       "Properties": {
@@ -466,7 +466,7 @@
                 "s3://${BucketName}/",
                 {
                   "BucketName": {
-                    "Ref": "S3Bucket"
+                    "Ref": "KinesisS3Bucket"
                   }
                 }
               ]
@@ -504,7 +504,7 @@
           "S3Targets": [
             {
               "Path": {
-                "Ref": "S3Bucket"
+                "Ref": "KinesisS3Bucket"
               }
             }
           ]
@@ -580,7 +580,7 @@
               [
                 "arn:aws:s3:::",
                 {
-                  "Ref": "S3Bucket"
+                  "Ref": "KinesisS3Bucket"
                 }
               ]
             ]
@@ -645,6 +645,76 @@
                 "Ref": "AWS::Region"
               },
               "VersionId": "LATEST"
+            }
+          }
+        }
+      }
+    },
+    "AthenaBucket": {
+      "Type": "AWS::S3::Bucket",
+      "DeletionPolicy": "Retain",
+      "Properties": {
+        "BucketName": {
+          "Fn::Sub": [
+            "${AppName}-${Env}-athena-${uuid}",
+            {
+              "Env": {
+                "Ref": "env"
+              },
+              "Uuid": {
+                "Ref": "uuid"
+              },
+              "AppName": {
+                "Ref": "appName"
+              }
+            }
+          ]
+        }
+      }
+    },
+    "AthenaWorkGroup": {
+      "DependsOn" : ["GlueCrawler"],
+      "Type": "AWS::Athena::WorkGroup",
+      "Properties": {
+        "Name": {
+          "Fn::Sub": [
+            "${AppName}-AthenaWorkGroup-${Env}",
+            {
+              "Env": {
+                "Ref": "env"
+              },
+              "AppName": {
+                "Ref": "appName"
+              }
+            }
+          ]
+        },
+        "Description": {
+          "Fn::Sub": [
+            "${AppName}-${Env} Athena workgroup",
+            {
+              "Env": {
+                "Ref": "env"
+              },
+              "AppName": {
+                "Ref": "appName"
+              }
+            }
+          ]
+        },
+        "RecursiveDeleteOption": true,
+        "State": "ENABLED",
+        "WorkGroupConfiguration": {
+          "ResultConfiguration": {
+            "OutputLocation": {
+              "Fn::Sub": [
+                "s3://${BucketName}/",
+                {
+                  "BucketName": {
+                    "Ref": "AthenaBucket"
+                  }
+                }
+              ]
             }
           }
         }
